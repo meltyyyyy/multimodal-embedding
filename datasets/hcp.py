@@ -5,8 +5,8 @@ from torch.utils.data import Dataset
 class HCP(Dataset):
     def __init__(
         self,
-        path,
-        patch_size=16,
+        path : str,
+        patch_size : int,
     ):
         super(HCP, self).__init__()
         data_dir = pathlib.Path(path).resolve()

@@ -1,0 +1,13 @@
+mask_ratio: 0.75
+patch_size: 16
+embed_dim: 1024
+in_chans: 1
+depth: 24
+num_heads: 16
+decoder_embed_dim: 512
+decoder_depth: 8
+decoder_num_heads: 16
+mlp_ratio: 1.0
+focus_range: null
+focus_rate: 0.6
+mask_ratio: 0.75
