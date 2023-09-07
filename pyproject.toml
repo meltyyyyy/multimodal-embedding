@@ -14,7 +14,6 @@ torchmetrics = {extras = ["image"], version = "^1.0.1"}
 wandb = "0.12.21"
 tqdm = "4.64.0"
 pillow = "9.0.1"
-omegaconf = "2.1.1"
 torch-fidelity = "0.3.0"
 einops = "0.3.0"
 timm = "0.5.4"
@@ -30,6 +29,8 @@ mne = "^1.5.0"
 clip = {git = "https://github.com/openai/CLIP.git"}
 ftfy = "^6.1.1"
 regex = "^2023.8.8"
+hydra-core = "^1.3.2"
+omegaconf = "^2.3.0"
 
 
 [tool.poetry.group.dev.dependencies]

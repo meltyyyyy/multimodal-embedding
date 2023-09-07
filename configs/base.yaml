@@ -1,0 +1,16 @@
+defaults:
+  - model: AudioContext
+  - dataset: multiframe_audio_cmer
+  - _self_
+seed: 42
+debug: true
+device: cuda:1
+print_freq: 10
+save_freq: 25
+run_base_dir: ./logs/runs/${now:%Y-%m-%d}
+wandb:
+  dir: ./logs
+  mode: disabled
+hydra:
+  run:
+    dir: ./logs/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
