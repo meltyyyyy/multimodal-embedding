@@ -91,8 +91,6 @@ def train_one_epoch(
         cor = torch.mean(
             torch.tensor([torch.corrcoef(torch.cat([p, s], axis=0))[0, 1] for p, s in zip(pred, X)])
         ).item()
-        optimizer.zero_grad()
-
         losses.append(loss_value)
         cors.append(cor)
 
