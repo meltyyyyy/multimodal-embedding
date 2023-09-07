@@ -1,0 +1,58 @@
+[tool.poetry]
+name = "multimodal-embedding"
+version = "0.1.0"
+description = ""
+authors = ["meltyyyyy <takeru.abe.g1@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.8.1,<4.0"
+torch = "1.13.0"
+torchvision = "0.14.0"
+pytorch-lightning = "1.6.5"
+torchmetrics = {extras = ["image"], version = "^1.0.1"}
+wandb = "0.12.21"
+tqdm = "4.64.0"
+pillow = "9.0.1"
+omegaconf = "2.1.1"
+torch-fidelity = "0.3.0"
+einops = "0.3.0"
+timm = "0.5.4"
+matplotlib = "^3.7.2"
+scikit-image = "^0.21.0"
+natsort = "^8.4.0"
+nibabel = "^5.1.0"
+ipykernel = "^6.25.1"
+hcp-utils = "^0.1.0"
+nilearn = "^0.10.1"
+h5py = "^3.9.0"
+mne = "^1.5.0"
+clip = {git = "https://github.com/openai/CLIP.git"}
+ftfy = "^6.1.1"
+regex = "^2023.8.8"
+
+
+[tool.poetry.group.dev.dependencies]
+pysen = "^0.10.4"
+black = "^23.7.0"
+flake8 = "^6.0.0"
+isort = "^5.12.0"
+
+[tool.pysen]
+version = "0.10"
+
+[tool.pysen.lint]
+enable_black = true
+enable_flake8 = true
+enable_isort = true
+enable_mypy = false
+mypy_preset = "entry"
+line_length = 120
+py_version = "py37"
+
+[tool.pysen.lint.source]
+  includes = ["."]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

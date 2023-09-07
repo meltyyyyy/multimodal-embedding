@@ -1,0 +1,100 @@
+Bootstrap: docker
+From: nvidia/cuda:11.6.2-runtime-ubuntu20.04
+
+%environment
+    # base settings
+    export TZ=Asia/Tokyo
+    export CUDA_PATH=/usr/local/cuda
+    export LD_LIBRARY_PATH=/usr/local/cuda-11.6/lib64:$LD_LIBRARY_PATH
+
+    # project settings
+    export WORKDIR=$HOME/workspace/multimodal-embedding
+    export XDG_DATA_HOME=$WORKDIR/.local/share
+    export XDG_CONFIG_HOME=$WORKDIR/.config
+    export XDG_CACHE_HOME=$WORKDIR/.cache
+
+    # proxy settings
+    export http_proxy=http://proxy.nict.go.jp:3128
+    export https_proxy=http://proxy.nict.go.jp:3128
+
+    # python settings
+    # python
+    export PYTHONPATH=$WORKDIR
+
+    # pyenv
+    export PYENV_ROOT=/opt/pyenv
+    export PATH=$PYENV_ROOT/bin:$PATH
+    export PATH=$PYENV_ROOT/shims:$PATH
+
+    # poetry
+    export POETRY_HOME=/opt/poetry
+    export PATH=$POETRY_HOME/bin:$PATH
+
+    # HCP
+    export PATH=$PATH:$WORKDIR/.local/workbench/bin_rh_linux64
+
+    # FreeSurfer
+    export FREESURFER_HOME=$WORKDIR/.local/freesurfer
+    export SUBJECT_DIR=$FREESURFER_HOME/subjects
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    # export WORKDIR=$HOME/workspace/multimodal-embedding
+    # export FREESURFER_HOME=$WORKDIR/.local/freesurfer
+    # export SUBJECT_DIR=$FREESURFER_HOME/subjects
+
+    # python settings
+    # python
+    export PYTHON_VERSION=3.8.1
+
+    # pyenv
+    export PYENV_ROOT=/opt/pyenv
+    export PATH=$PYENV_ROOT/bin:$PATH
+
+    # poetry
+    export POETRY_ROOT=/opt/poetry
+    export PATH=$POETRY_ROOT/bin:$PATH
+
+    apt-get update && apt-get install -y \
+        git \
+        curl \
+        wget \
+        zip \
+        unzip \
+        make \
+        build-essential \
+        libssl-dev \
+        zlib1g-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        llvm \
+        libncurses5-dev \
+        libncursesw5-dev \
+        xz-utils \
+        tk-dev \
+        libffi-dev \
+        liblzma-dev \
+        python-openssl --no-install-recommends
+
+    # Install freesurfer
+    # This takes about 1 hour. It's recommended to download the archive in advance.
+    # curl https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.4.1/freesurfer-linux-centos7_x86_64-7.4.1.tar.gz -o freesurfer-linux-centos7_x86_64-7.4.1.tar.gz
+    # mkdir -p $WORKDIR/.local
+    # tar -zxpf /opt/installers/freesurfer/freesurfer-linux-centos7_x86_64-7.4.1.tar.gz -C $WORKDIR/.local/
+    # source $FREESURFER_HOME/SetUpFreeSurfer.sh
+
+    # Install pyenv
+    git clone https://github.com/pyenv/pyenv.git $PYENV_ROOT
+    eval "$(pyenv init --path)"
+    pyenv install $PYTHON_VERSION
+    pyenv local $PYTHON_VERSION
+
+    # Install poetry
+    git clone https://github.com/python-poetry/install.python-poetry.org.git /opt/installers/poetry
+    POETRY_HOME=$POETRY_ROOT python3 /opt/installers/poetry/install-poetry.py
+    poetry config virtualenvs.in-project true
+
+%labels
+    Author takeru.abe
+    Version v1.0.1
+
