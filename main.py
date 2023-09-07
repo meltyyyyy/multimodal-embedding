@@ -1,16 +1,19 @@
 import datetime
 import os
-import time
 import random
-import numpy as np
+import time
+
+import datasets
+import hydra
+import models
 import numpy as np
 import timm.optim.optim_factory as optim_factory
 import torch
 import wandb
-import hydra
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader
-import datasets
+from trainers.mae_trainer import NativeScalerWithGradNormCount, train_one_epoch
+from utils.net_util import save_model
 
 cfg = None
 
@@ -29,86 +32,70 @@ def main(config):
 
     main_worker()
 
+
 def main_worker():
     torch.distributed.init_process_group(backend="nccl")
-    
+    device = torch.device("cuda:" + os.environ["LOCAL_RANK"]) if torch.cuda.is_available() else torch.device("cpu")
+
     if int(os.environ["RANK"]) == 0:
         wandb.init(
-            project="multimodal-embedding",
-               config=cfg.to_dict(),
-               dir=cfg.wandb.dir,
-               mode=cfg.wandb.mode)
-        wandb.alert(
-            title="Start training",
-            text=f"Training started with parameters below.\n{cfg}"
+            project="multimodal-embedding", group="sc-mbm", config=cfg.to_dict(), dir=cfg.wandb.dir, mode=cfg.wandb.mode
         )
+        wandb.alert(title="Start training", text=f"Training started with parameters below.\n{cfg}")
 
-    dataset = datasets.__dict__[cfg.dataset.name](**cfg.dataset)
-
-    print(f"Dataset size: {len(dataset)}")
-    print(f"Number of voxels: {dataset.num_voxels}")
-    sampler = torch.utils.data.DistributedSampler(dataset, rank=int(os.environ["RANK"]))
-
-    dataloader = DataLoader(
-        dataset, batch_size=cfg.batch_size, sampler=sampler, shuffle=cfg.shuffle, pin_memory=True
-    )
-
-    model = MAEforFMRI(
-        num_voxels=dataset_pretrain.num_voxels,
-        patch_size=config.patch_size,
-        embed_dim=config.embed_dim,
-        decoder_embed_dim=config.decoder_embed_dim,
-        depth=config.depth,
-        num_heads=config.num_heads,
-        decoder_num_heads=config.decoder_num_heads,
-        mlp_ratio=config.mlp_ratio,
-        focus_range=config.focus_range,
-        focus_rate=config.focus_rate,
-        img_recon_weight=config.img_recon_weight,
-        use_nature_img_loss=config.use_nature_img_loss,
-    )
+    model = models.__dict__(cfg.model.name)(**cfg.model)
+    model = model.to(device)
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-    model = DistributedDataParallel(
+    ddp_model = DistributedDataParallel(
         model,
         device_ids=[id for id in range(int(os.environ["LOCAL_WORLD_SIZE"]))],
         find_unused_parameters=True,
     )
 
-    param_groups = optim_factory.add_weight_decay(model, cfg.weight_decay)
+    dataset = datasets.__dict__[cfg.dataset.name](**cfg.dataset)
+    sampler = torch.utils.data.DistributedSampler(dataset, rank=int(os.environ["RANK"]))
+    dataloader = DataLoader(dataset, batch_size=cfg.batch_size, sampler=sampler, shuffle=cfg.shuffle, pin_memory=True)
+    print(f"Dataset size: {len(dataset)}")
+    print(f"Number of voxels: {dataset.num_voxels}")
+
+    param_groups = optim_factory.add_weight_decay(ddp_model, cfg.weight_decay)
     optimizer = torch.optim.AdamW(param_groups, lr=cfg.lr, betas=(0.9, 0.95))
+    loss_scaler = NativeScalerWithGradNormCount()
     print(optimizer)
-    loss_scaler = NativeScaler()
 
     if int(os.environ["RANK"]) == 0:
         wandb.watch(model, log="all", log_freq=1000)
 
-    cor_list = []
+    cors = []
     start_time = time.time()
     print("Start Training the fmri MAE ...")
 
-    for ep in range(cfg.n_epoch):
-        sampler.set_epoch(ep) 
-        cor = train_one_epoch(
+    for epoch in range(cfg.num_epoch):
+        sampler.set_epoch(epoch)
+        mean_cor, mean_loss = train_one_epoch(
             model,
-            dataloader_hcp,
+            ddp_model,
             optimizer,
+            dataloader,
             device,
-            ep,
+            epoch,
             loss_scaler,
-            logger,
-            config,
-            start_time,
-            model_without_ddp,
-            img_feature_extractor,
-            preprocess,
         )
-        cor_list.append(cor)
+        cors.append(mean_cor)
 
-    total_time = time.time() - start_time
-    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    print("Training time {}".format(total_time_str))
+        lr = optimizer.param_groups[0]["lr"]
+        wandb.log({"lr", lr}, step=epoch)
+        wandb.log({"train loss": mean_loss}, step=epoch)
+        wandb.log({"cor", mean_cor}, step=epoch)
+        wandb.log("time (min)", (time.time() - start_time) / 60.0, step=epoch)
+
+        if not cfg.debug and (epoch % cfg.save_freq == 0 or epoch == cfg.num_epoch - 1):
+            save_model(cfg, epoch, model, optimizer, loss_scaler, cfg.save_dir)
+
+    elapsed_time = time.time() - start_time
+    print(f"Training time {elapsed_time}")
     if int(os.environ["RANK"]) == 0:
-        wandb.log("max cor", np.max(cor_list), step=cfg.num_epoch - 1)
+        wandb.log("max cor", np.max(cors), step=cfg.num_epoch - 1)
         wandb.finish()
 
 

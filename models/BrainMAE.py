@@ -1,14 +1,15 @@
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 from timm.models.vision_transformer import Block
-from typing import Tuple
-from utils.mae import get_1d_sincos_pos_embed
+from utils.mae_util import get_1d_sincos_pos_embed
 
 
 class PatchEmbed1D(nn.Module):
     """1 Dimensional version of data (fmri voxels) to Patch Embedding"""
 
-    def __init__(self, num_voxels : int, patch_size : int, in_chans: int, embed_dim : int):
+    def __init__(self, num_voxels: int, patch_size: int, in_chans: int, embed_dim: int):
         """
         Initialize the 1D Patch Embedding layer.
 
@@ -168,7 +169,7 @@ class BrainMAE(nn.Module):
         x = imgs.reshape(shape=(imgs.shape[0], h, p))
         return x
 
-    def unpatchify(self, x : torch.Tensor) -> torch.Tensor:
+    def unpatchify(self, x: torch.Tensor) -> torch.Tensor:
         """
         Transform patches back to images.
 
@@ -184,7 +185,7 @@ class BrainMAE(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], 1, h * p))
         return imgs
 
-    def random_masking(self, x : torch.Tensor, mask_ratio : float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def random_masking(self, x: torch.Tensor, mask_ratio: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Apply per-sample random masking to the input sequence.
 
@@ -228,7 +229,7 @@ class BrainMAE(nn.Module):
 
         return x_masked, mask, ids_restore
 
-    def forward_encoder(self, x : torch.Tensor, mask_ratio : float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward_encoder(self, x: torch.Tensor, mask_ratio: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Encode the input sequence using the MAE encoder.
 
@@ -260,7 +261,7 @@ class BrainMAE(nn.Module):
 
         return x, mask, ids_restore
 
-    def forward_decoder(self, x : torch.Tensor, ids_restore : torch.Tensor) -> torch.Tensor:
+    def forward_decoder(self, x: torch.Tensor, ids_restore: torch.Tensor) -> torch.Tensor:
         """
         Decode the encoded sequence using the MAE decoder.
 
@@ -296,7 +297,6 @@ class BrainMAE(nn.Module):
 
         return x
 
-
     def forward_loss(self, imgs: torch.Tensor, pred: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """
         Compute the reconstruction loss for the autoencoder.
@@ -319,7 +319,7 @@ class BrainMAE(nn.Module):
         )  # mean loss on removed patches
         return loss
 
-    def forward(self, x : torch.Tensor, mask_ratio=0.75) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, mask_ratio=0.75) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Forward pass through the autoencoder.
 

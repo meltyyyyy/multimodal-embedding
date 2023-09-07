@@ -20,3 +20,4 @@ num_epoch: 1000
 warmup_epochs: 40
 batch_size: 256
 clip_grad: 0.8
+accum_iter: 1
