@@ -2,6 +2,7 @@ results/
 data/
 __pycache__/
 wandb/
+logs/
 lightning_logs/
 image_generation/
 mind_vis.egg-info/

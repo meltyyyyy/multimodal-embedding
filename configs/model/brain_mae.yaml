@@ -1,3 +1,5 @@
+name: "BrainMAE"
+num_voxels: 10096
 mask_ratio: 0.75
 patch_size: 16
 embed_dim: 1024
@@ -10,4 +12,3 @@ decoder_num_heads: 16
 mlp_ratio: 1.0
 focus_range: null
 focus_rate: 0.6
-mask_ratio: 0.75

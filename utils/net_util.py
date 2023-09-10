@@ -1,8 +1,12 @@
-import os
 import math
-import torch
+import os
+from typing import Dict
 
-def save_model(config, epoch, model, optimizer, loss_scaler, path):
+import torch
+import torch.nn as nn
+
+
+def save_model(config: Dict, epoch: int, model: nn.Module, optimizer: torch.optim.Optimizer, loss_scaler, path: str):
     state_dict = {
         "model": model.state_dict(),
         "optimizer": optimizer.state_dict(),
@@ -10,6 +14,7 @@ def save_model(config, epoch, model, optimizer, loss_scaler, path):
         "scaler": loss_scaler.state_dict(),
         "config": config,
     }
+    os.makedirs(path, exist_ok=True)
     torch.save(state_dict, os.path.join(path, "checkpoint.pth"))
 
 

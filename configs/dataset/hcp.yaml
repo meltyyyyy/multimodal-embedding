@@ -1,2 +1,4 @@
+name: "HCP"
 path: "./data/HCP"
 patch_size: 16
+num_voxels: 10091

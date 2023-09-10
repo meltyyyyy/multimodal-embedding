@@ -1,11 +1,19 @@
+import logging
 import math
 import sys
+from typing import Dict, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Dict, Tuple
-from utils.net_util import adjust_learning_rate
 from torch._six import inf
+from torch.utils.data import DataLoader
+from utils.mae_util import unpatchify
+from utils.metric import correlation
+from utils.net_util import adjust_learning_rate
+
+logger = logging.getLogger(__name__)
+
 
 class NativeScalerWithGradNormCount:
     state_dict_key = "amp_scaler"
@@ -35,6 +43,7 @@ class NativeScalerWithGradNormCount:
     def load_state_dict(self, state_dict):
         self._scaler.load_state_dict(state_dict)
 
+
 def get_grad_norm_(parameters, norm_type: float = 2.0):
     if isinstance(parameters, torch.Tensor):
         parameters = [parameters]
@@ -53,45 +62,44 @@ def get_grad_norm_(parameters, norm_type: float = 2.0):
 
 
 def train_one_epoch(
-    model: nn.Module,
     ddp_model: nn.parallel.DistributedDataParallel,
-    dataloader: torch.utils.data.DataLoader,
+    dataloader: DataLoader,
     optimizer: torch.optim.Optimizer,
-    device: str,
+    device: torch.cuda.device,
     epoch: int,
     loss_scaler: NativeScalerWithGradNormCount,
-    cfg: Dict
+    cfg: Dict,
 ) -> Tuple[float, float]:
     ddp_model.train()
-    optimizer.zero_grad()
+
     losses = []
-    cors = []
+    corrs = []
     accum_iter = cfg.accum_iter
     for i, (X) in enumerate(dataloader):
         if i % accum_iter == 0:
-            adjust_learning_rate(optimizer, i / len(dataloader) + epoch, cfg.num_epoch, cfg.lr, cfg.min_lr, cfg.warmup_epochs)
-
-        X = X.to(device)
+            adjust_learning_rate(
+                optimizer, i / len(dataloader) + epoch, cfg.num_epoch, cfg.lr, cfg.min_lr, cfg.warmup_epochs
+            )
 
         optimizer.zero_grad()
         with torch.cuda.amp.autocast(enabled=True):
+            X = X.to(device).half()
             loss, pred, _ = ddp_model(X, mask_ratio=cfg.model.mask_ratio)
 
         loss_value = loss.item()
 
         if not math.isfinite(loss_value):
-            print(f"Loss is {loss_value}, stopping training at step {i} epoch {epoch}")
+            logger.error(f"Loss is {loss_value}, stopping training at step {i} epoch {epoch}")
             sys.exit(1)
 
-        loss_scaler(loss, optimizer, parameters=ddp_model.parameters(), clip_grad=cfg.model.clip_grad)
+        loss_scaler(loss, optimizer, parameters=ddp_model.parameters(), clip_grad=cfg.clip_grad)
 
-        pred = pred.to("cpu").detach()
-        X = X.to("cpu").detach()
-        pred = model.unpatchify(pred)
-        cor = torch.mean(
-            torch.tensor([torch.corrcoef(torch.cat([p, s], axis=0))[0, 1] for p, s in zip(pred, X)])
-        ).item()
+        pred = pred.to("cpu").detach().float()
+        pred = unpatchify(pred, cfg.model.patch_size)
+        X = X.to("cpu").detach().float()
+
+        cor = correlation(X, pred)
         losses.append(loss_value)
-        cors.append(cor)
+        corrs.append(cor)
 
-    return np.mean(cors), np.mean(losses)
+    return np.mean(corrs), np.mean(losses)

@@ -3,7 +3,7 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 from timm.models.vision_transformer import Block
-from utils.mae_util import get_1d_sincos_pos_embed
+from utils.mae_util import get_1d_sincos_pos_embed, patchify
 
 
 class PatchEmbed1D(nn.Module):
@@ -60,6 +60,7 @@ class BrainMAE(nn.Module):
         norm_layer=nn.LayerNorm,
         focus_range=None,
         focus_rate=None,
+        **kwargs,
     ) -> None:
         super().__init__()
 
@@ -151,39 +152,6 @@ class BrainMAE(nn.Module):
             torch.nn.init.normal_(m.weight, std=0.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
-
-    def patchify(self, imgs: torch.Tensor) -> torch.Tensor:
-        """
-        Transform images to patches.
-
-        Args:
-            imgs (torch.Tensor): Input images of shape (N, 1, num_voxels).
-
-        Returns:
-            torch.Tensor: Patches of shape (N, L, patch_size).
-        """
-        p = self.patch_embed.patch_size
-        assert imgs.ndim == 3 and imgs.shape[2] % p == 0
-
-        h = imgs.shape[2] // p
-        x = imgs.reshape(shape=(imgs.shape[0], h, p))
-        return x
-
-    def unpatchify(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Transform patches back to images.
-
-        Args:
-            x (torch.Tensor): Patches of shape (N, L, patch_size).
-
-        Returns:
-            torch.Tensor: Images of shape (N, 1, num_voxels).
-        """
-        p = self.patch_embed.patch_size
-        h = x.shape[1]
-
-        imgs = x.reshape(shape=(x.shape[0], 1, h * p))
-        return imgs
 
     def random_masking(self, x: torch.Tensor, mask_ratio: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -309,7 +277,7 @@ class BrainMAE(nn.Module):
         Returns:
             torch.Tensor: Mean squared error loss.
         """
-        target = self.patchify(imgs)
+        target = patchify(imgs, self.patch_size)
 
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch

@@ -5,20 +5,17 @@ from torch.utils.data import Dataset
 
 
 class HCP(Dataset):
-    def __init__(
-        self,
-        path: str,
-        patch_size: int,
-    ):
+    def __init__(self, path: str, patch_size: int, debug: bool = False, **kwargs):
         super(HCP, self).__init__()
-        data_dir = pathlib.Path(path).resolve()
-        cache_dir = data_dir.parent / ".cache" / "data" / "hcp"
+        data_dir = pathlib.Path(path).resolve() / "npz"
+        cache_dir = data_dir.parent.parent.parent / ".cache" / "data" / "hcp"
         cache_dir.mkdir(parents=True, exist_ok=True)
         self.data_files = []
         self.patch_size = patch_size
-        self.prepare_dataset(data_dir, patch_size)
+        self.debug = debug
+        self.prepare_dataset(data_dir, cache_dir, patch_size)
 
-    def prepare_dataset(self, data_dir: pathlib.Path, patch_size):
+    def prepare_dataset(self, data_dir: pathlib.Path, cache_dir: pathlib.Path, patch_size: int):
         for sub in data_dir.iterdir():
             if not sub.is_dir():
                 continue
@@ -28,16 +25,19 @@ class HCP(Dataset):
 
                 npz = dict(np.load(filepath))
                 voxels = np.concatenate([npz[k] for k in npz.keys()], axis=-1)
-                voxels = process_voxel_ts(voxels, patch_size)
+                voxels = process_voxel_ts(voxels)
                 voxels = pad_to_patch_size(voxels, patch_size)
                 voxels = normalize(voxels)
                 voxels = np.expand_dims(voxels, axis=1)  # num_samples, 1, num_voxels_padded
 
                 for idx, sample in enumerate(voxels):
-                    cache_file = self.cache_dir / f"{filepath.stem}_{idx:08}.npy"
+                    cache_file = cache_dir / f"{filepath.stem}_{sub.stem}_{idx:05}.npy"
                     if not cache_file.exists():
                         np.save(cache_file, sample)
                     self.data_files.append(cache_file)
+
+            if self.debug and len(self.data_files) > 2**10:
+                return
 
     @property
     def num_voxels(self):
@@ -52,10 +52,9 @@ class HCP(Dataset):
         return fmri
 
 
-def process_voxel_ts(v, p, t=8):
+def process_voxel_ts(v, t=8):
     """
     v: voxel timeseries of a subject. (1200, num_voxels)
-    p: patch size
     t: time step of the averaging window for v. Kamitani used 8 ~ 12s
     return: voxels_reduced. reduced for the alignment of the patch size (num_samples, num_voxels_reduced)
     """
