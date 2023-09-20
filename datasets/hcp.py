@@ -3,20 +3,24 @@ import pathlib
 import numpy as np
 from torch.utils.data import Dataset
 
+from utils.dataset_util import normalize, pad_to_patch_size
 
+# TODO : HCPBase -> HCPの全データをそのまま返す, HCP -> 前処理ありで返すに分ける
 class HCP(Dataset):
     def __init__(self, path: str, patch_size: int, debug: bool = False, **kwargs):
         super(HCP, self).__init__()
-        data_dir = pathlib.Path(path).resolve() / "npz"
-        cache_dir = data_dir.parent.parent.parent / ".cache" / "data" / "hcp"
-        cache_dir.mkdir(parents=True, exist_ok=True)
+        self.data_dir = pathlib.Path(path).resolve()
         self.data_files = []
         self.patch_size = patch_size
         self.debug = debug
-        self.prepare_dataset(data_dir, cache_dir, patch_size)
+        self.prepare_dataset(patch_size)
 
-    def prepare_dataset(self, data_dir: pathlib.Path, cache_dir: pathlib.Path, patch_size: int):
-        for sub in data_dir.iterdir():
+    def prepare_dataset(self):
+        resp_dir = self.data_dir / "npz"
+        cache_dir = self.data_dir.parent.parent.parent / ".cache" / "data" / "hcp"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        for sub in resp_dir.iterdir():
             if not sub.is_dir():
                 continue
             for filepath in sub.glob("*"):
@@ -26,7 +30,7 @@ class HCP(Dataset):
                 npz = dict(np.load(filepath))
                 voxels = np.concatenate([npz[k] for k in npz.keys()], axis=-1)
                 voxels = process_voxel_ts(voxels)
-                voxels = pad_to_patch_size(voxels, patch_size)
+                voxels = pad_to_patch_size(voxels, self.patch_size)
                 voxels = normalize(voxels)
                 voxels = np.expand_dims(voxels, axis=1)  # num_samples, 1, num_voxels_padded
 
@@ -49,7 +53,7 @@ class HCP(Dataset):
 
     def __getitem__(self, index):
         fmri = np.load(self.data_files[index])
-        return fmri
+        return fmri, None
 
 
 def process_voxel_ts(v, t=8):
@@ -65,13 +69,3 @@ def process_voxel_ts(v, t=8):
     v_split = np.concatenate([np.mean(f, axis=0).reshape(1, -1) for f in v_split], axis=0)
     return v_split
 
-
-def pad_to_patch_size(x, patch_size):
-    assert x.ndim == 2
-    return np.pad(x, ((0, 0), (0, patch_size - x.shape[1] % patch_size)), "wrap")
-
-
-def normalize(x):
-    mean = np.mean(x)
-    std = np.std(x)
-    return (x - mean) / (std * 1.0)

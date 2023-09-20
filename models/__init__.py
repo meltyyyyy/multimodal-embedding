@@ -1,4 +1,5 @@
-from models.brain_mae import BrainMAE
+from models.brain_mae import BrainMAE, BrainMAEEncoder
+from models.cifp import CIFP, CLIPImageEncoder
 
 __all__ = [
     "BrainMAE",

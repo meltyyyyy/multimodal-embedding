@@ -1,0 +1,5 @@
+name: "BOLD5000"
+path: "./data/BOLD5000"
+patch_size: 16
+num_voxels: 10096
+subject_id: "CSI1"

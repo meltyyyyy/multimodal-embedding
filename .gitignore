@@ -9,6 +9,7 @@ mind_vis.egg-info/
 pretrains/
 data/
 workbench/
+Notebooks/
 Glasser_et_al_2016_HCP_MMP1.0_kN_RVVG/
 *.out
 *.npz

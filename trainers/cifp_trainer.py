@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from torch._six import inf
 from torch.utils.data import DataLoader
+from utils.cfip_util import contrastive_loss
 from utils.mae_util import unpatchify
 from utils.metric import correlation
 from utils.net_util import adjust_learning_rate
@@ -73,9 +74,8 @@ def train_one_epoch(
     ddp_model.train()
 
     losses = []
-    corrs = []
     accum_iter = cfg.accum_iter
-    for i, (X, _) in enumerate(dataloader):
+    for i, (resp, stim) in enumerate(dataloader):
         if i % accum_iter == 0:
             logger.debug(f"Adjusting learning rate at iteration {i} epoch {epoch}")
             adjust_learning_rate(
@@ -83,9 +83,10 @@ def train_one_epoch(
             )
 
         optimizer.zero_grad()
-        with torch.cuda.amp.autocast(enabled=True):
-            X = X.to(device).half()
-            loss, pred, _ = ddp_model(X, mask_ratio=cfg.model.mask_ratio)
+        stim = stim.to(device)
+        resp = resp.to(device)
+        logits_per_image, logits_per_fmri  = ddp_model(stim, resp)
+        loss = (contrastive_loss(logits_per_image) + contrastive_loss(logits_per_fmri)) / 2.0
 
         loss_value = loss.item()
 
@@ -94,14 +95,7 @@ def train_one_epoch(
             sys.exit(1)
 
         loss_scaler(loss, optimizer, parameters=ddp_model.parameters(), clip_grad=cfg.clip_grad)
-
-        pred = pred.to("cpu").detach().float()
-        pred = unpatchify(pred, cfg.model.patch_size)
-        X = X.to("cpu").detach().float()
-
-        cor = correlation(X, pred)
         losses.append(loss_value)
-        corrs.append(cor)
-        logger.debug(f"Epoch {epoch} | iteration {i} | loss {loss_value} | cor {cor}")
+        logger.debug(f"Epoch {epoch} | iteration {i} | loss {loss_value}")
 
-    return np.mean(corrs), np.mean(losses)
+    return np.mean(losses)

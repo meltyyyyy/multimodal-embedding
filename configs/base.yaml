@@ -1,16 +1,16 @@
 defaults:
-  - model: brain_mae
-  - dataset: hcp
+  - model: cifp
+  - dataset: bold5000
   - _self_
 seed: 42
-debug: false
+debug: true
 find_unused_parameters: false
 print_freq: 10
 save_freq: 10
 run_base_dir: ./logs/runs/${now:%Y-%m-%d}/${now:%H-%M-%S}
 wandb:
   dir: ./logs
-  mode: online
+  mode: disabled
 hydra:
   run:
     dir: ./logs/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -22,3 +22,4 @@ warmup_epochs: 40
 batch_size: 64
 clip_grad: 0.8
 accum_iter: 1
+resume: null

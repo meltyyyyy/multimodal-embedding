@@ -46,6 +46,34 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     return emb
 
 
+# --------------------------------------------------------
+# Interpolate position embeddings for high-resolution
+# References:
+# DeiT: https://github.com/facebookresearch/deit
+# --------------------------------------------------------
+def interpolate_pos_embed(model, checkpoint_model):
+    if "pos_embed" in checkpoint_model:
+        pos_embed_checkpoint = checkpoint_model["pos_embed"]
+        embedding_size = pos_embed_checkpoint.shape[-1]
+        num_patches = model.patch_embed.num_patches
+        num_extra_tokens = model.pos_embed.shape[-2] - num_patches  # cls token
+        # height (== width) for the checkpoint position embedding
+        orig_size = int(pos_embed_checkpoint.shape[-2] - num_extra_tokens)
+        # height (== width) for the new position embedding
+        new_size = int(num_patches)
+        # class_token and dist_token are kept unchanged
+        if orig_size != new_size:
+            print("Position interpolate from %d to %d" % (orig_size, new_size))
+            extra_tokens = pos_embed_checkpoint[:, :num_extra_tokens]
+            # only the position tokens are interpolated
+            pos_tokens = pos_embed_checkpoint[:, num_extra_tokens:]
+            pos_tokens = pos_tokens.reshape(-1, orig_size, embedding_size).permute(0, 2, 1)
+            pos_tokens = torch.nn.functional.interpolate(pos_tokens, size=(new_size))
+            pos_tokens = pos_tokens.permute(0, 2, 1)
+            new_pos_embed = torch.cat((extra_tokens, pos_tokens), dim=1)
+            checkpoint_model["pos_embed"] = new_pos_embed
+            
+            
 def patchify(imgs: torch.Tensor, patch_size: int) -> torch.Tensor:
     """
     Transform images to patches.
@@ -104,7 +132,7 @@ def plot_reconstruction(
     axs[0, 2].set_title("Reconstruction")
 
     for ax in axs:
-        sample = next(iter(dataloader))
+        sample, _ = next(iter(dataloader))
         with torch.cuda.amp.autocast(enabled=True):
             sample = sample.to(device).half()
             _, pred, mask = ddp_model(sample, mask_ratio=mask_ratio)

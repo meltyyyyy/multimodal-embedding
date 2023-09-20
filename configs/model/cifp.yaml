@@ -1,0 +1,16 @@
+name: CIFP
+embed_dim: 1024
+
+brain_encoder:
+  name: BrainMAEEncoder
+  num_voxels: 10096
+  patch_size: 16
+  embed_dim: 1024
+  in_chans: 1
+  depth: 24
+  num_heads: 16
+  mlp_ratio: 1.0
+  checkpoint: logs/runs/2023-09-12/22-52-04/checkpoint.pth
+
+image_encoder:
+  name: CLIPImageEncoder
