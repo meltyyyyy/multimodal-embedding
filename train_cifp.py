@@ -14,7 +14,7 @@ import torch.distributed as dist
 import wandb
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
-from trainers.cifp_trainer import NativeScalerWithGradNormCount, train_one_epoch
+from trainers.cifp_trainer import train_one_epoch
 from utils.net_util import save_model
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] : [%(funcName)s] %(message)s")
@@ -74,7 +74,9 @@ def main_worker():
 
     image_encoder = models.__dict__[cfg.model.image_encoder.name](**cfg.model.image_encoder)
 
-    model = models.__dict__[cfg.model.name](brain_encoder=brain_encoder, image_encoder=image_encoder, **cfg.model)
+    model = models.__dict__[cfg.model.name](
+        embed_dim=cfg.model.embed_dim, brain_encoder=brain_encoder, image_encoder=image_encoder
+    )
     model = model.to(device)
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     ddp_model = DDP(
@@ -87,9 +89,8 @@ def main_worker():
     logger.info(f"Number of parameters: {sum(p.numel() for p in model.parameters())}")
 
     param_groups = optim_factory.add_weight_decay(ddp_model, cfg.weight_decay)
-    optimizer = torch.optim.AdamW(param_groups, lr=cfg.lr, betas=(0.9, 0.95))
-    loss_scaler = NativeScalerWithGradNormCount()
-    logger.info(f"Optimizer: AdamW")
+    optimizer = torch.optim.SGD(param_groups, lr=cfg.lr)
+    logger.info(f"Optimizer: SGD")
 
     if rank == 0:
         wandb.watch(model, log="all", log_freq=1000)
@@ -100,7 +101,7 @@ def main_worker():
 
     for epoch in range(cfg.num_epoch):
         sampler.set_epoch(epoch)
-        mean_loss = train_one_epoch(ddp_model, dataloader, optimizer, device, epoch, loss_scaler, cfg)
+        mean_loss = train_one_epoch(ddp_model, dataloader, optimizer, device, epoch, cfg)
 
         lr = optimizer.param_groups[0]["lr"]
 
@@ -112,7 +113,7 @@ def main_worker():
 
             if epoch % cfg.save_freq == 0 or epoch == cfg.num_epoch - 1:
                 logger.info(f"Saving model at epoch {epoch}")
-                save_model(cfg, epoch, model, optimizer, loss_scaler, cfg.run_base_dir)
+                save_model(cfg, epoch, model, optimizer, None, cfg.run_base_dir)
 
     logger.info(f"Training time {time.time() - start_time}")
     if rank == 0:

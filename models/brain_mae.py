@@ -325,7 +325,6 @@ class BrainMAEEncoder(nn.Module):
         self.patch_embed = PatchEmbed1D(num_voxels, patch_size, in_chans, embed_dim)
 
         num_patches = self.patch_embed.num_patches
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(
             torch.zeros(1, num_patches + 1, embed_dim), requires_grad=False
         )  # fixed sin-cos embedding
@@ -334,7 +333,6 @@ class BrainMAEEncoder(nn.Module):
             [Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer) for i in range(depth)]
         )
         self.norm = norm_layer(embed_dim)
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
         self.embed_dim = embed_dim
         self.patch_size = patch_size
@@ -351,9 +349,6 @@ class BrainMAEEncoder(nn.Module):
         # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
         w = self.patch_embed.proj.weight.data
         torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
-        # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
-        torch.nn.init.normal_(self.cls_token, std=0.02)
-        torch.nn.init.normal_(self.mask_token, std=0.02)
         # initialize nn.Linear and nn.LayerNorm
         self.apply(self._init_weights)
 

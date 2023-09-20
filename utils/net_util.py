@@ -11,9 +11,11 @@ def save_model(config: Dict, epoch: int, model: nn.Module, optimizer: torch.opti
         "model": model.state_dict(),
         "optimizer": optimizer.state_dict(),
         "epoch": epoch,
-        "scaler": loss_scaler.state_dict(),
         "config": config,
     }
+
+    if loss_scaler is not None:
+        state_dict["loss_scaler"] = loss_scaler.state_dict()
     os.makedirs(path, exist_ok=True)
     torch.save(state_dict, os.path.join(path, "checkpoint.pth"))
 
