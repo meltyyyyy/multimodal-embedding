@@ -15,7 +15,16 @@ _, preprocess = CLIP.load("ViT-B/32", jit=False, download_root="./.cache/clip")
 
 # TODO : BOLD5000Base -> BOLD5000の全データをそのまま返す, BOLD5000 -> 前処理ありで返すに分ける
 class BOLD5000(Dataset):
-    def __init__(self, path: str, subject_id: str, num_voxels: int, patch_size: int, debug: bool = False, **kwargs):
+    def __init__(
+        self,
+        path: str,
+        subject_id: str,
+        num_voxels: int,
+        org_num_voxels: int,
+        patch_size: int,
+        debug: bool = False,
+        **kwargs,
+    ):
         super(BOLD5000, self).__init__()
         self.data_dir = pathlib.Path(path).resolve()
         self.subject_id = subject_id
@@ -23,6 +32,7 @@ class BOLD5000(Dataset):
         self.patch_size = patch_size
         self.debug = debug
         self.num_voxels = num_voxels
+        self.org_num_voxels = org_num_voxels
         self.prepare_dataset()
 
     def prepare_dataset(self):
@@ -111,7 +121,7 @@ class BOLD5000(Dataset):
         if resp.shape[-1] < self.num_voxels:
             resp = np.pad(resp, ((0, 0), (0, self.num_voxels - resp.shape[-1])), "wrap")
         else:
-            resp = resp[:, : self.num_voxels]
+            resp = resp[:, :, self.num_voxels]
 
         stim = torch.from_numpy(stim)
         resp = torch.from_numpy(resp)

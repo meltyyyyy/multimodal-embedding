@@ -3,14 +3,14 @@ defaults:
   - dataset: bold5000
   - _self_
 seed: 42
-debug: false
+debug: true
 find_unused_parameters: false
 print_freq: 10
 save_freq: 10
 run_base_dir: ./logs/runs/${now:%Y-%m-%d}/${now:%H-%M-%S}
 wandb:
   dir: ./logs
-  mode: online
+  mode: disabled
 hydra:
   run:
     dir: ./logs/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
