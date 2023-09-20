@@ -85,7 +85,7 @@ def train_one_epoch(
         optimizer.zero_grad()
         stim = stim.to(device)
         resp = resp.to(device)
-        logits_per_image, logits_per_fmri  = ddp_model(stim, resp)
+        logits_per_image, logits_per_fmri = ddp_model(stim, resp)
         loss = (contrastive_loss(logits_per_image) + contrastive_loss(logits_per_fmri)) / 2.0
 
         loss_value = loss.item()

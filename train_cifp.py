@@ -71,9 +71,9 @@ def main_worker():
 
     brain_encoder = models.__dict__[cfg.model.brain_encoder.name](**cfg.model.brain_encoder)
     brain_encoder.load_checkpoint(torch.load(cfg.model.brain_encoder.checkpoint, map_location="cpu")["model"])
-    
+
     image_encoder = models.__dict__[cfg.model.image_encoder.name](**cfg.model.image_encoder)
-    
+
     model = models.__dict__[cfg.model.name](brain_encoder=brain_encoder, image_encoder=image_encoder, **cfg.model)
     model = model.to(device)
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)

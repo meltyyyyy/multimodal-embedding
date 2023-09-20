@@ -2,8 +2,8 @@ import pathlib
 
 import numpy as np
 from torch.utils.data import Dataset
-
 from utils.dataset_util import normalize, pad_to_patch_size
+
 
 # TODO : HCPBase -> HCPの全データをそのまま返す, HCP -> 前処理ありで返すに分ける
 class HCP(Dataset):
@@ -19,7 +19,7 @@ class HCP(Dataset):
         resp_dir = self.data_dir / "npz"
         cache_dir = self.data_dir.parent.parent.parent / ".cache" / "data" / "hcp"
         cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         for sub in resp_dir.iterdir():
             if not sub.is_dir():
                 continue
@@ -68,4 +68,3 @@ def process_voxel_ts(v, t=8):
     v_split = np.array_split(v, len(v) // num_frames_per_window, axis=0)
     v_split = np.concatenate([np.mean(f, axis=0).reshape(1, -1) for f in v_split], axis=0)
     return v_split
-

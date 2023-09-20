@@ -55,7 +55,7 @@ def main_worker():
     if rank == 0:
         wandb.init(
             project="multimodal-embedding",
-            group="sc-mbm",
+            group="pretrain-mae",
             config=cfg,
             dir=cfg.wandb.dir,
             mode=cfg.wandb.mode,

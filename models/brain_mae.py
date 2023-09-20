@@ -1,11 +1,13 @@
-from typing import Tuple
 import logging
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 from timm.models.vision_transformer import Block
 from utils.mae_util import get_1d_sincos_pos_embed, interpolate_pos_embed, patchify
 
 logger = logging.getLogger(__name__)
+
 
 class PatchEmbed1D(nn.Module):
     """1 Dimensional version of data (fmri voxels) to Patch Embedding"""
@@ -305,6 +307,7 @@ class BrainMAE(nn.Module):
 
         return loss, pred, mask
 
+
 class BrainMAEEncoder(nn.Module):
     def __init__(
         self,
@@ -332,11 +335,11 @@ class BrainMAEEncoder(nn.Module):
         )
         self.norm = norm_layer(embed_dim)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-        
+
         self.embed_dim = embed_dim
         self.patch_size = patch_size
         self.num_patches = num_patches
-        
+
         self.initialize_weights()
 
     def initialize_weights(self):

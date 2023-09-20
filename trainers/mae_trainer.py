@@ -97,7 +97,9 @@ def train_one_epoch(
 
         pred = pred.to("cpu").detach().float()
         pred = unpatchify(pred, cfg.model.patch_size)
+        pred = pred[:, :, : cfg.dataset.org_num_voxels]
         X = X.to("cpu").detach().float()
+        X = X[:, :, : cfg.dataset.org_num_voxels]
 
         cor = correlation(X, pred)
         losses.append(loss_value)
